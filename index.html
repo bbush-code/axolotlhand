@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Axolotl Maze - Infinite Levels</title>
+  <title>Axolotl Hands</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -56,7 +56,7 @@
   </style>
 </head>
 <body>
-  <h1>Axolotl Maze - Infinite Levels</h1>
+  <h1>Axolotl Hands</h1>
   <p>Score: <span id="score">0</span> | High Score: <span id="highscore">0</span> | Level: <span id="level">1</span></p>
   <div id="game"></div>
   <p id="message"></p>
@@ -88,21 +88,18 @@
       message.textContent = '';
       enemyIndexes = [];
 
-      // More walls each level
       const wallCount = 50 + level * 5;
       for (let i = 0; i < wallCount; i++) {
         let wallIndex = Math.floor(Math.random() * totalCells);
         if (layout[wallIndex] === 'dot') layout[wallIndex] = 'wall';
       }
 
-      // Place axolotl
       axolotlIndex = 0;
       while (layout[axolotlIndex] === 'wall') {
         axolotlIndex = Math.floor(Math.random() * totalCells);
       }
       layout[axolotlIndex] = 'axolotl';
 
-      // More enemies each level
       const enemyCount = Math.min(3 + level, 20);
       while (enemyIndexes.length < enemyCount) {
         let idx = Math.floor(Math.random() * totalCells);
@@ -143,7 +140,6 @@
         game.appendChild(div);
       });
 
-      // Win condition: no dots left
       if (!layout.includes('dot')) {
         level++;
         setTimeout(startLevel, 1000);
@@ -181,21 +177,35 @@
       if (gameOver) return;
 
       for (let i = 0; i < enemyIndexes.length; i++) {
-        const directions = [-1, 1, -width, width];
         const current = enemyIndexes[i];
+        const axolotlRow = Math.floor(axolotlIndex / width);
+        const axolotlCol = axolotlIndex % width;
+        const enemyRow = Math.floor(current / width);
+        const enemyCol = current % width;
+        const distance = Math.abs(axolotlRow - enemyRow) + Math.abs(axolotlCol - enemyCol);
+
         let newIndex = current;
 
-        for (let attempt = 0; attempt < 4; attempt++) {
-          const dir = directions[Math.floor(Math.random() * directions.length)];
-          const tempIndex = current + dir;
-          if (
-            tempIndex >= 0 && tempIndex < totalCells &&
-            layout[tempIndex] !== 'wall' &&
-            layout[tempIndex] !== 'enemy'
-          ) {
-            newIndex = tempIndex;
-            break;
+        if (distance <= 5) {
+          // Move towards the axolotl
+          if (axolotlRow < enemyRow) {
+            newIndex = current - width; // Move up
+          } else if (axolotlRow > enemyRow) {
+            newIndex = current + width; // Move down
+          } else if (axolotlCol < enemyCol) {
+            newIndex = current - 1; // Move left
+          } else if (axolotlCol > enemyCol) {
+            newIndex = current + 1; // Move right
           }
+        } else {
+          // Move randomly if the axolotl is not in range
+          const directions = [-1, 1, -width, width];
+          newIndex = current + directions[Math.floor(Math.random() * directions.length)];
+        }
+
+        // Avoid out of bounds and collisions
+        if (newIndex < 0 || newIndex >= totalCells || layout[newIndex] === 'wall' || layout[newIndex] === 'enemy') {
+          continue;
         }
 
         if (layout[newIndex] === 'axolotl') return endGame();
