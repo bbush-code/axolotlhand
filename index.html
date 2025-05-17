@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Axolotl Hands</title>
+  <title>Axolotl Maze - Infinite Levels</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -56,8 +56,8 @@
   </style>
 </head>
 <body>
-  <h1>Axolotl Hands</h1>
-  <p>Score: <span id="score">0</span> | High Score: <span id="highscore">0</span></p>
+  <h1>Axolotl Maze - Infinite Levels</h1>
+  <p>Score: <span id="score">0</span> | High Score: <span id="highscore">0</span> | Level: <span id="level">1</span></p>
   <div id="game"></div>
   <p id="message"></p>
 
@@ -66,38 +66,58 @@
     const scoreDisplay = document.getElementById('score');
     const highScoreDisplay = document.getElementById('highscore');
     const message = document.getElementById('message');
+    const levelDisplay = document.getElementById('level');
 
     const width = 15;
     const totalCells = width * width;
+
     let score = 0;
+    let level = 1;
     let highScore = getCookie("highscore") || 0;
     highScoreDisplay.textContent = highScore;
 
-    const layout = Array(totalCells).fill('dot');
-
-    // Random walls
-    for (let i = 0; i < 60; i++) {
-      const wallIndex = Math.floor(Math.random() * totalCells);
-      layout[wallIndex] = 'wall';
-    }
-
-    // Player start
+    let layout = [];
     let axolotlIndex = 0;
-    while (layout[axolotlIndex] === 'wall') axolotlIndex++;
-
-    layout[axolotlIndex] = 'axolotl';
-
-    // Multiple enemies
-    const enemyIndexes = [];
-    while (enemyIndexes.length < 6) {
-      let idx = Math.floor(Math.random() * totalCells);
-      if (layout[idx] === 'dot') {
-        layout[idx] = 'enemy';
-        enemyIndexes.push(idx);
-      }
-    }
-
+    let enemyIndexes = [];
     let gameOver = false;
+    let enemyInterval;
+
+    function startLevel() {
+      layout = Array(totalCells).fill('dot');
+      gameOver = false;
+      message.textContent = '';
+      enemyIndexes = [];
+
+      // More walls each level
+      const wallCount = 50 + level * 5;
+      for (let i = 0; i < wallCount; i++) {
+        let wallIndex = Math.floor(Math.random() * totalCells);
+        if (layout[wallIndex] === 'dot') layout[wallIndex] = 'wall';
+      }
+
+      // Place axolotl
+      axolotlIndex = 0;
+      while (layout[axolotlIndex] === 'wall') {
+        axolotlIndex = Math.floor(Math.random() * totalCells);
+      }
+      layout[axolotlIndex] = 'axolotl';
+
+      // More enemies each level
+      const enemyCount = Math.min(3 + level, 20);
+      while (enemyIndexes.length < enemyCount) {
+        let idx = Math.floor(Math.random() * totalCells);
+        if (layout[idx] === 'dot') {
+          layout[idx] = 'enemy';
+          enemyIndexes.push(idx);
+        }
+      }
+
+      drawGrid();
+
+      clearInterval(enemyInterval);
+      enemyInterval = setInterval(moveEnemies, Math.max(300, 1000 - level * 50));
+      levelDisplay.textContent = level;
+    }
 
     function drawGrid() {
       game.innerHTML = '';
@@ -122,6 +142,13 @@
         }
         game.appendChild(div);
       });
+
+      // Win condition: no dots left
+      if (!layout.includes('dot')) {
+        level++;
+        setTimeout(startLevel, 1000);
+        message.textContent = 'Level Complete! 🎉 Starting next...';
+      }
     }
 
     function moveAxolotl(e) {
@@ -133,15 +160,11 @@
       if (e.key === 'ArrowLeft') newIndex -= 1;
       if (e.key === 'ArrowRight') newIndex += 1;
 
-      // Movement validation
       if (newIndex < 0 || newIndex >= totalCells) return;
       if (Math.abs((axolotlIndex % width) - (newIndex % width)) > 1 &&
           (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
       if (layout[newIndex] === 'wall') return;
-      if (layout[newIndex] === 'enemy') {
-        endGame();
-        return;
-      }
+      if (layout[newIndex] === 'enemy') return endGame();
 
       if (layout[newIndex] === 'dot') {
         score += 10;
@@ -175,10 +198,7 @@
           }
         }
 
-        if (layout[newIndex] === 'axolotl') {
-          endGame();
-          return;
-        }
+        if (layout[newIndex] === 'axolotl') return endGame();
 
         layout[current] = '';
         layout[newIndex] = 'enemy';
@@ -191,10 +211,11 @@
 
     function endGame() {
       gameOver = true;
+      clearInterval(enemyInterval);
       message.textContent = "Game Over! The axolotl was touched! 💀🪑🚡";
       if (score > highScore) {
         highScore = score;
-        setCookie("highscore", score, 3650); // 10 years
+        setCookie("highscore", score, 3650);
         highScoreDisplay.textContent = highScore;
       }
     }
@@ -215,8 +236,7 @@
     }
 
     document.addEventListener('keydown', moveAxolotl);
-    drawGrid();
-    setInterval(moveEnemies, 1000);
+    startLevel();
   </script>
 </body>
 </html>
