@@ -1,1 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Axolotl Maze</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      background-color: #e0f7fa;
+    }
 
+    #game {
+      display: grid;
+      grid-template-columns: repeat(10, 40px);
+      grid-template-rows: repeat(10, 40px);
+      gap: 2px;
+      margin: 20px auto;
+      width: fit-content;
+    }
+
+    .cell {
+      width: 40px;
+      height: 40px;
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .wall {
+      background-color: #90caf9;
+    }
+
+    .dot {
+      color: #888;
+    }
+
+    .axolotl img {
+      width: 100%;
+      height: auto;
+    }
+
+    .hand {
+      font-size: 26px;
+    }
+
+    #message {
+      font-weight: bold;
+      font-size: 1.2em;
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Axolotl Maze</h1>
+  <p>Score: <span id="score">0</span> | High Score: <span id="highscore">0</span></p>
+  <div id="game"></div>
+  <p id="message"></p>
+
+  <script>
+    const game = document.getElementById('game');
+    const scoreDisplay = document.getElementById('score');
+    const highScoreDisplay = document.getElementById('highscore');
+    const message = document.getElementById('message');
+
+    const width = 10;
+    const totalCells = width * width;
+    let score = 0;
+    let highScore = getCookie("highscore") || 0;
+    highScoreDisplay.textContent = highScore;
+
+    let layout = Array(totalCells).fill('dot');
+    const walls = [22, 23, 24, 25, 26, 44, 64];
+    walls.forEach(i => layout[i] = 'wall');
+
+    let axolotlIndex = 0;
+    let enemyIndexes = [99, 70];
+
+    layout[axolotlIndex] = 'axolotl';
+    enemyIndexes.forEach(i => layout[i] = 'enemy');
+
+    let gameOver = false;
+
+    function drawGrid() {
+      game.innerHTML = '';
+      layout.forEach((type, i) => {
+        const div = document.createElement('div');
+        div.classList.add('cell');
+        if (type === 'wall') div.classList.add('wall');
+        if (type === 'dot') {
+          div.textContent = '·';
+          div.classList.add('dot');
+        }
+        if (type === 'axolotl') {
+          div.classList.add('axolotl');
+          const img = document.createElement('img');
+          img.src = 'player.png';
+          img.alt = 'Axolotl';
+          div.appendChild(img);
+        }
+        if (type === 'enemy') {
+          div.textContent = '🖐️';
+          div.classList.add('hand');
+        }
+        game.appendChild(div);
+      });
+    }
+
+    function moveAxolotl(e) {
+      if (gameOver) return;
+
+      let newIndex = axolotlIndex;
+      if (e.key === 'ArrowUp') newIndex -= width;
+      if (e.key === 'ArrowDown') newIndex += width;
+      if (e.key === 'ArrowLeft') newIndex -= 1;
+      if (e.key === 'ArrowRight') newIndex += 1;
+
+      if (newIndex < 0 || newIndex >= totalCells) return;
+      if (Math.abs((axolotlIndex % width) - (newIndex % width)) > 1 &&
+          (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+      if (layout[newIndex] === 'wall') return;
+      if (layout[newIndex] === 'enemy') {
+        endGame();
+        return;
+      }
+
+      if (layout[newIndex] === 'dot') {
+        score += 10;
+        scoreDisplay.textContent = score;
+      }
+
+      layout[axolotlIndex] = '';
+      axolotlIndex = newIndex;
+      layout[axolotlIndex] = 'axolotl';
+      drawGrid();
+    }
+
+    function moveEnemies() {
+      if (gameOver) return;
+
+      for (let i = 0; i < enemyIndexes.length; i++) {
+        const directions = [-1, 1, -width, width];
+        const current = enemyIndexes[i];
+        let newIndex = current;
+
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const dir = directions[Math.floor(Math.random() * directions.length)];
+          const tempIndex = current + dir;
+          if (
+            tempIndex >= 0 && tempIndex < totalCells &&
+            layout[tempIndex] !== 'wall' &&
+            layout[tempIndex] !== 'enemy'
+          ) {
+            newIndex = tempIndex;
+            break;
+          }
+        }
+
+        if (layout[newIndex] === 'axolotl') {
+          endGame();
+          return;
+        }
+
+        layout[current] = '';
+        layout[newIndex] = 'enemy';
+        enemyIndexes[i] = newIndex;
+      }
+
+      layout[axolotlIndex] = 'axolotl';
+      drawGrid();
+    }
+
+    function endGame() {
+      gameOver = true;
+      message.textContent = "Game Over! The axolotl was touched! 🖐️🦎💔";
+      if (score > highScore) {
+        highScore = score;
+        setCookie("highscore", score, 3650); // 10 years
+        highScoreDisplay.textContent = highScore;
+      }
+    }
+
+    function setCookie(name, value, days) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days*24*60*60*1000));
+      document.cookie = `${name}=${value}; expires=${d.toUTCString()}; path=/`;
+    }
+
+    function getCookie(name) {
+      const cookies = document.cookie.split(';');
+      for (let c of cookies) {
+        const [k, v] = c.trim().split('=');
+        if (k === name) return v;
+      }
+      return null;
+    }
+
+    document.addEventListener('keydown', moveAxolotl);
+    drawGrid();
+    setInterval(moveEnemies, 1000);
+  </script>
+</body>
+</html>
